@@ -31,7 +31,6 @@ unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
 unsigned char* gaussianBlur(unsigned char* image, int width, int height, int countChannel, float sigma) {
 
     int kernelSize = ceil(sigma * 3) * 2 + 1;
-    cout << kernelSize << endl;
     int halfOfKernelSize = kernelSize / 2;
     float* kernel = new float[kernelSize * kernelSize];
 
