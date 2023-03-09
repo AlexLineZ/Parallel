@@ -1,5 +1,6 @@
-#pragma GCC optimize("03")
-#pragma GCC target("avx2")
+//g++ -fopenmp main.cpp -o test
+//#pragma GCC optimize("03")
+//#pragma GCC target("avx2")
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define _CRT_SECURE_NO_WARNINGS
@@ -14,19 +15,10 @@ using namespace std;
 
 const int PIXELLIMIT = 255;
 
-unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
-    unsigned char* newImage = new unsigned char[width * height * 3];
-    int length = width * height * 3;
-    for (int i = 0; i < length; i++) {
-        newImage[i] = char(PIXELLIMIT - int(imageData[i]));
-    }
-    return newImage;
-}
-
 unsigned char* convertToThreeChannel(unsigned char* image, int width, int heigth) {
     unsigned char* newImage = new unsigned char[3 * width * heigth];
     int j = 0;
-    for (int i = 0; i < width * heigth * 4; i+=4) {
+    for (int i = 0; i < width * heigth * 4; i += 4) {
         newImage[j] = image[i];
         newImage[j + 1] = image[i + 1];
         newImage[j + 2] = image[i + 2];
@@ -35,13 +27,14 @@ unsigned char* convertToThreeChannel(unsigned char* image, int width, int heigth
     return newImage;
 }
 
-unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma) {
+unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, double sigma) {
 
     int kernelSize = ceil(sigma * 3) * 2 + 1;
     int halfOfKernelSize = kernelSize / 2;
-    float* kernel = new float[kernelSize * kernelSize];
+    double* kernel = new double[kernelSize * kernelSize];
 
-    float sum = 0;
+    double sum = 0;
+
     for (int i = 0; i < kernelSize; i++) {
         for (int j = 0; j < kernelSize; j++) {
 
@@ -58,13 +51,12 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
     }
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
-
-    //#pragma omp parallel for
+#pragma omp parallel for num_threads(4)
     for (int channel = 0; channel < countChannel; channel++) {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
 
-                float pixel = 0;
+                double pixel = 0;
 
                 for (int i = 0; i < kernelSize; i++) {
                     for (int j = 0; j < kernelSize; j++) {
@@ -84,6 +76,15 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
     return newImage;
 }
 
+unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
+    unsigned char* newImage = new unsigned char[width * height * 3];
+    int length = width * height * 3;
+#pragma omp parallel for num_threads(4)
+    for (int i = 0; i < length; i++) {
+        newImage[i] = char(PIXELLIMIT - int(imageData[i]));
+    }
+    return newImage;
+}
 
 int main() {
 
