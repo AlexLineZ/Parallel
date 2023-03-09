@@ -23,12 +23,19 @@ unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
     return newImage;
 }
 
-//unsigned char* convertToThreeChannel(unsigned char* image, int width, int hength) {
-//    unsigned char* newImage = new unsigned char[3 * width * hength];
-//
-//}
+unsigned char* convertToThreeChannel(unsigned char* image, int width, int heigth) {
+    unsigned char* newImage = new unsigned char[3 * width * heigth];
+    int j = 0;
+    for (int i = 0; i < width * heigth * 4; i+=4) {
+        newImage[j] = image[i];
+        newImage[j + 1] = image[i + 1];
+        newImage[j + 2] = image[i + 2];
+        j += 3;
+    }
+    return newImage;
+}
 
-unsigned char* gaussianBlur(unsigned char* image, int width, int height, int countChannel, float sigma) {
+unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma) {
 
     int kernelSize = ceil(sigma * 3) * 2 + 1;
     int halfOfKernelSize = kernelSize / 2;
@@ -52,6 +59,7 @@ unsigned char* gaussianBlur(unsigned char* image, int width, int height, int cou
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
 
+    //#pragma omp parallel for
     for (int channel = 0; channel < countChannel; channel++) {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -124,21 +132,22 @@ int main() {
 		exit(EXIT_FAILURE);
 	}
 
-    if (channels != 3) {
-        cout << "There are not 3 channels in this picture, choose another" << endl;
-        exit(EXIT_FAILURE);
+    if (channels > 3) {
+        cout << "Wait. Photo editing in progress..." << endl;
+        imageData = convertToThreeChannel(imageData, width, height);
+        channels = 3;
     }
 
 
     auto begin = chrono::steady_clock::now();
 
-    unsigned char* gaussImage = gaussianBlur(imageData, width, height, channels, 7);
+    unsigned char* gaussImage = gaussFilter(imageData, width, height, channels, 7);
     stbi_write_png(gauss, width, height, channels, gaussImage, 0);
 
     auto end = chrono::steady_clock::now();
 
-    auto elapsed_ms = chrono::duration_cast<chrono::microseconds>(end - begin);
-    cout << "The time of Gauss: " << elapsed_ms.count() / 1000000.0 << " s\n";
+    auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+    cout << "The time of Gauss Filter: " << elapsedMS.count() / 1000000.0 << " s\n";
 
 
     begin = chrono::steady_clock::now();
@@ -147,9 +156,8 @@ int main() {
 	stbi_write_png(negative, width, height, channels, negativeImage, 0);
 
     end = chrono::steady_clock::now();
-    elapsed_ms = chrono::duration_cast<chrono::microseconds>(end - begin);
-    cout << "The time of Negative Filter: " << elapsed_ms.count() / 1000000.0 << " s\n";
-
+    elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+    cout << "The time of Negative Filter: " << elapsedMS.count() / 1000000.0 << " s\n";
 
 	cout << "Success" << endl;
 	stbi_image_free(imageData);
