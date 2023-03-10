@@ -1,6 +1,5 @@
 //g++ -fopenmp main.cpp -o test
-#pragma GCC optimize("03")
-#pragma GCC target("avx2")
+// cd C:\Users\alial\source\repos\Parallel\Parallel
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define _CRT_SECURE_NO_WARNINGS
@@ -27,14 +26,23 @@ unsigned char* convertToThreeChannel(unsigned char* image, int width, int heigth
     return newImage;
 }
 
-unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, double sigma) {
+unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
+    unsigned char* newImage = new unsigned char[width * height * 3];
+    int length = width * height * 3;
 
-    int kernelSize = ceil(sigma * 3) * 2 + 1;
+#pragma omp parallel for
+    for (int i = 0; i < length; i++) {
+        newImage[i] = char(PIXELLIMIT - int(imageData[i]));
+    }
+    return newImage;
+}
+
+unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, double sigma, int kernelSize) {
+
     int halfOfKernelSize = kernelSize / 2;
     double* kernel = new double[kernelSize * kernelSize];
-
     double sum = 0;
-//#pragma omp parallel for
+
     for (int i = 0; i < kernelSize; i++) {
         for (int j = 0; j < kernelSize; j++) {
 
@@ -45,14 +53,13 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
             sum += kernel[i * kernelSize + j];
         }
     }
-//#pragma omp parallel for
     for (int i = 0; i < kernelSize * kernelSize; i++) {
         kernel[i] /= sum;
     }
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
 
-//#pragma omp parallel for
+    //#pragma omp parallel for
     for (int channel = 0; channel < countChannel; channel++) {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -77,28 +84,18 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
     return newImage;
 }
 
-unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
-    unsigned char* newImage = new unsigned char[width * height * 3];
-    int length = width * height * 3;
-//#pragma omp parallel for
-    for (int i = 0; i < length; i++) {
-        newImage[i] = char(PIXELLIMIT - int(imageData[i]));
-    }
-    return newImage;
-}
-
 int main() {
 
     const char* input = "";
     const char* negative = "negative.png";
     const char* gauss = "gauss.png";
 
-	int width, height, channels;
+    int width, height, channels;
     int number;
 
-    cout << "Choose a picture: \n" << "1 - 300x300\n" << "2 - 400x400\n" << "3 - 500x500\n" << "4 - 600x600\n" 
-         << "5 - 950x950\n" << "6 - 2400x2400\n";
-    
+    cout << "Choose a picture: \n" << "1 - 300x300\n" << "2 - 400x400\n" << "3 - 500x500\n" << "4 - 600x600\n"
+        << "5 - 950x950\n" << "6 - 2400x2400\n";
+
     cin >> number;
     switch (number) {
     case 1:
@@ -127,12 +124,12 @@ int main() {
         break;
     }
 
-	unsigned char* imageData = stbi_load(input, &width, &height, &channels, 0);
+    unsigned char* imageData = stbi_load(input, &width, &height, &channels, 0);
 
-	if (imageData == nullptr) {
-		cout << "There is no such picture or you entered the wrong name. Try again." << endl;
-		exit(EXIT_FAILURE);
-	}
+    if (imageData == nullptr) {
+        cout << "There is no such picture or you entered the wrong name. Try again." << endl;
+        exit(EXIT_FAILURE);
+    }
 
     if (channels > 3) {
         cout << "Wait. Photo editing in progress..." << endl;
@@ -140,28 +137,47 @@ int main() {
         channels = 3;
     }
 
-    auto begin = chrono::steady_clock::now();
 
-    unsigned char* negativeImage = negativeFilter(imageData, width, height);
-	stbi_write_png(negative, width, height, channels, negativeImage, 0);
-
-    auto end = chrono::steady_clock::now();
-    auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
-    cout << "The time of Negative Filter: " << elapsedMS.count() / 1000000.0 << " s\n";
+    double sum = 0;
+    unsigned char* negativeImage;
 
 
-    begin = chrono::steady_clock::now();
+    for (int i = 0; i < 1000; i++) {
 
-    unsigned char* gaussImage = gaussFilter(imageData, width, height, channels, 7);
-    stbi_write_png(gauss, width, height, channels, gaussImage, 0);
+        auto begin = chrono::high_resolution_clock::now();
 
-    end = chrono::steady_clock::now();
+        negativeImage = negativeFilter(imageData, width, height);
 
-    elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
-    cout << "The time of Gauss Filter: " << elapsedMS.count() / 1000000.0 << " s\n";
+        auto end = chrono::high_resolution_clock::now();
+        auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+
+        cout << elapsedMS.count() / 1000000.0 << endl;
+        sum += elapsedMS.count() / 1000000.0;
+    }
+
+    stbi_write_png(negative, width, height, channels, negativeImage, 0);
+
+    cout << "The time of Negative Filter: " << sum / 1000 << " s\n";
 
 
-	cout << "Success" << endl;
-	stbi_image_free(imageData);
+    /*double sum = 0;
+    unsigned char* gaussImage;
+
+    for (int i = 0; i < 1000; i++) {
+        auto begin = chrono::steady_clock::now();
+        gaussImage = gaussFilter(imageData, width, height, channels, 7.2, 25);
+        auto end = chrono::steady_clock::now();
+        auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+
+        sum += elapsedMS.count() / 1000000.0;
+    }
+
+    stbi_write_png(negative, width, height, channels, negativeImage, 0);
+    cout << "The time of Gauss Filter: " << sum / 1000 << " s\n";*/
+
+
+
+    cout << "Success" << endl;
+    stbi_image_free(imageData);
 
 }
