@@ -30,7 +30,7 @@ unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
     unsigned char* newImage = new unsigned char[width * height * 3];
     int length = width * height * 3;
 
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < length; i++) {
         newImage[i] = char(PIXELLIMIT - int(imageData[i]));
     }
@@ -83,6 +83,9 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
     }
     return newImage;
 }
+
+
+
 
 int main() {
 
@@ -139,45 +142,58 @@ int main() {
 
 
     double sum = 0;
-    unsigned char* negativeImage;
+    cout << "Choose a filter: \n" << "1 - Negative Filter\n" << "2 - Gaussian Blur\n";
+    int filter;
+    cin >> filter;
 
+    switch (filter) {
+    case 1:
+        sum = 0;
+        unsigned char* negativeImage;
 
-    for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 1000; i++) {
 
-        auto begin = chrono::high_resolution_clock::now();
+            auto begin = chrono::high_resolution_clock::now();
 
-        negativeImage = negativeFilter(imageData, width, height);
+            negativeImage = negativeFilter(imageData, width, height);
 
-        auto end = chrono::high_resolution_clock::now();
-        auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+            auto end = chrono::high_resolution_clock::now();
+            auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
 
-        cout << elapsedMS.count() / 1000000.0 << endl;
-        sum += elapsedMS.count() / 1000000.0;
+            //cout << elapsedMS.count() / 1000000.0 << endl;
+            sum += elapsedMS.count() / 1000000.0;
+        }
+
+        stbi_write_png(negative, width, height, channels, negativeImage, 0);
+
+        cout << "The middle time of Negative Filter: " << sum / 1000 << " s\n";
+        break;
+
+    case 2:
+        sum = 0;
+        unsigned char* gaussImage;
+
+        for (int i = 0; i < 20; i++) {
+            auto begin = chrono::steady_clock::now();
+
+            gaussImage = gaussFilter(imageData, width, height, channels, 7.2, 22);
+
+            auto end = chrono::steady_clock::now();
+            auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+
+            sum += elapsedMS.count() / 1000000.0;
+        }
+
+        stbi_write_png(gauss, width, height, channels, gaussImage, 0);
+        cout << "The middle time of Gauss Filter: " << sum / 20 << " s\n";
+        break;
+
+    default:
+        cout << "Error" << endl;
+        return 0;
     }
-
-    stbi_write_png(negative, width, height, channels, negativeImage, 0);
-
-    cout << "The time of Negative Filter: " << sum / 1000 << " s\n";
-
-
-    /*double sum = 0;
-    unsigned char* gaussImage;
-
-    for (int i = 0; i < 1000; i++) {
-        auto begin = chrono::steady_clock::now();
-        gaussImage = gaussFilter(imageData, width, height, channels, 7.2, 25);
-        auto end = chrono::steady_clock::now();
-        auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
-
-        sum += elapsedMS.count() / 1000000.0;
-    }
-
-    stbi_write_png(negative, width, height, channels, negativeImage, 0);
-    cout << "The time of Gauss Filter: " << sum / 1000 << " s\n";*/
-
-
 
     cout << "Success" << endl;
-    stbi_image_free(imageData);
 
+    stbi_image_free(imageData);
 }
