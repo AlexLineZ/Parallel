@@ -243,7 +243,7 @@ int main() {
     case 2:
         sum = 0;
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 100; i++) {
             auto begin = chrono::steady_clock::now();
 
             gaussImage = gaussFilter(imageData, width, height, channels, 7.2, 22);
@@ -255,7 +255,7 @@ int main() {
         }
 
         stbi_write_png(gauss, width, height, channels, gaussImage, 0);
-        cout << "The middle time of Gauss Filter: " << sum / 20 << " s\n";
+        cout << "The middle time of Gauss Filter: " << sum / 100 << " s\n";
         break;
 
     case 3:
