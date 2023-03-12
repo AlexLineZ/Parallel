@@ -115,7 +115,6 @@ unsigned char* openMP_gaussFilter(unsigned char* image, int width, int height, i
     double* kernel = new double[kernelSize * kernelSize];
     double sum = 0;
 
-    #pragma omp parallel for
     for (int i = 0; i < kernelSize; i++) {
         for (int j = 0; j < kernelSize; j++) {
 
@@ -270,7 +269,7 @@ int main() {
 
             auto end = chrono::high_resolution_clock::now();
             auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
-            cout << elapsedMS.count() / 1000000.0 << endl;
+            /*cout << elapsedMS.count() / 1000000.0 << endl;*/
             sum += elapsedMS.count() / 1000000.0;
         }
 
@@ -282,7 +281,7 @@ int main() {
     case 4:
         sum = 0;
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 100; i++) {
             auto begin = chrono::steady_clock::now();
 
             gaussImage = openMP_gaussFilter(imageData, width, height, channels, 7.2, 22);
@@ -294,7 +293,7 @@ int main() {
         }
 
         stbi_write_png(gauss, width, height, channels, gaussImage, 0);
-        cout << "The middle time of Gauss Filter: " << sum / 20 << " s\n";
+        cout << "The middle time of Gauss Filter: " << sum / 100 << " s\n";
         break;
 
     case 5:
