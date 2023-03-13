@@ -86,17 +86,68 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
 unsigned char* vectorNegativeFilter(unsigned char* imageData, int width, int height) {
     unsigned char* newImage = new unsigned char[width * height * 3];
     int length = width * height * 3;
-    const __m128i pixelLimit = _mm_set1_epi8(PIXELLIMIT);
+    const __m128i pixelLimit = _mm_set1_epi8(PIXELLIMIT); //создание константного вектора со значением 255
 
     for (int i = 0; i < length; i += 16) {
-        __m128i pixel = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&imageData[i]));
-        pixel = _mm_sub_epi8(pixelLimit, pixel);
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(&newImage[i]), pixel);
+        __m128i pixel = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&imageData[i])); //загружает 128 бит данных из imageData в регистр SIMD с типом __m128i
+        pixel = _mm_sub_epi8(pixelLimit, pixel); //тут происходит вычитание 
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&newImage[i]), pixel); //а тут мы записываепм данные из регистра в новое изображение
     }
 
     return newImage;
 }
 
+unsigned char* vectorGaussFilter(unsigned char* image, int width, int height, int countChannel, double sigma, int kernelSize) {
+
+    int halfOfKernelSize = kernelSize / 2;
+    double* kernel = new double[kernelSize * kernelSize];
+    double sum = 0;
+
+    for (int i = 0; i < kernelSize; i++) {
+        for (int j = 0; j < kernelSize; j++) {
+
+            int x = i - halfOfKernelSize;
+            int y = j - halfOfKernelSize;
+
+            kernel[i * kernelSize + j] = exp(-(pow(x, 2) + pow(y, 2)) / (2 * pow(sigma, 2)));
+            sum += kernel[i * kernelSize + j];
+        }
+    }
+
+    for (int i = 0; i < kernelSize * kernelSize; i++) {
+        kernel[i] /= sum;
+    }
+
+    unsigned char* newImage = new unsigned char[width * height * countChannel];
+
+    for (int channel = 0; channel < countChannel; channel++) {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x += 4) {
+
+                __m128d pixel = _mm_setzero_pd();
+
+                for (int i = 0; i < kernelSize; i++) {
+                    for (int j = 0; j < kernelSize; j++) {
+
+                        int pixelX = x + i - halfOfKernelSize;
+                        int pixelY = y + j - halfOfKernelSize;
+
+                        if (pixelX >= 0 and pixelX < width and pixelY >= 0 and pixelY < height) {
+                            __m128d getImage = _mm_cvtepi32_pd(_mm_loadu_si128(reinterpret_cast<const __m128i*>(&image[(pixelY * width + pixelX) * countChannel + channel])));
+                            __m128d getKernel = _mm_loadu_pd(&kernel[i * kernelSize + j]);
+                            __m128d multiply = _mm_mul_pd(getImage, getKernel);
+                            pixel = _mm_add_pd(pixel, multiply);
+                        }
+                    }
+                }
+                _mm_storeu_si128(reinterpret_cast<__m128i*>(&newImage[(y * width + x) * countChannel + channel]), _mm_cvtpd_epi32(pixel));
+            }
+        }
+    }
+
+    delete[] kernel;
+    return newImage;
+}
 
 unsigned char* openMP_negativeFilter(unsigned char* imageData, int width, int height) {
     unsigned char* newImage = new unsigned char[width * height * 3];
@@ -201,7 +252,7 @@ int main() {
 
     if (imageData == nullptr) {
         cout << "There is no such picture or you entered the wrong name. Try again." << endl;
-        exit(EXIT_FAILURE);
+        return 0;
     }
 
     if (channels > 3) {
@@ -314,6 +365,24 @@ int main() {
         stbi_write_png(negative, width, height, channels, negativeImage, 0);
 
         cout << "The middle time of Negative Filter: " << sum / 1000 << " s\n";
+        break;
+
+    case 6:
+        sum = 0;
+
+        for (int i = 0; i < 1; i++) {
+            auto begin = chrono::steady_clock::now();
+
+            gaussImage = vectorGaussFilter(imageData, width, height, channels, 7.2, 22);
+
+            auto end = chrono::steady_clock::now();
+            auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
+
+            sum += elapsedMS.count() / 1000000.0;
+        }
+
+        stbi_write_png(gauss, width, height, channels, gaussImage, 0);
+        cout << "The middle time of Gauss Filter: " << sum << " s\n";
         break;
 
     default:
