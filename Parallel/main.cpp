@@ -8,6 +8,7 @@
 #include <cmath>
 #include <chrono>
 #include <omp.h>
+#include <string>
 //#include <x86intrin.h>
 using namespace std;
 
@@ -106,8 +107,9 @@ unsigned char* vectorNegativeFilter(unsigned char* imageData, int width, int hei
 unsigned char* openMP_negativeFilter(unsigned char* imageData, int width, int height) {
     unsigned char* newImage = new unsigned char[width * height * 3];
     int length = width * height * 3;
+    int i = 0;
 
-#pragma omp parallel for
+#pragma omp parallel for shared (imageData, newImage) private (i)
     for (int i = 0; i < length; i++) {
         newImage[i] = char(PIXELLIMIT - int(imageData[i]));
     }
@@ -120,8 +122,8 @@ unsigned char* openMP_gaussFilter(unsigned char* image, int width, int height, i
     float* kernel = calculateKernel(sigma, kernelSize);
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
-
-#pragma omp parallel for
+    int x, y, channel, i, j;
+#pragma omp parallel for shared (kernel, image, newImage, width, height) private (channel, y, x, i, j)
     for (int channel = 0; channel < countChannel; channel++) {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -226,10 +228,7 @@ int main() {
         input = "2400x2400.png";
         break;
     default:
-        cout << "Enter another name" << endl;
-        string name;
-        cin >> name;
-        input = name.c_str();
+        input = "image.png";
         break;
     }
 
