@@ -1,6 +1,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define _CRT_SECURE_NO_WARNINGS
+#define __CL_ENABLE_EXCEPTIONS
 #include <iostream>
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -58,10 +59,9 @@ unsigned char* negativeFilter(unsigned char* imageData, int width, int height) {
     return newImage;
 }
 
-unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma, int kernelSize) {
+unsigned char* gaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma, int kernelSize, float* kernel) {
 
     int halfOfKernelSize = kernelSize / 2;
-    float* kernel = calculateKernel(sigma, kernelSize);
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
 
@@ -86,7 +86,6 @@ unsigned char* gaussFilter(unsigned char* image, int width, int height, int coun
             }
         }
     }
-    delete[] kernel;
     return newImage;
 }
 
@@ -116,10 +115,9 @@ unsigned char* openMP_negativeFilter(unsigned char* imageData, int width, int he
     return newImage;
 }
 
-unsigned char* openMP_gaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma, int kernelSize) {
+unsigned char* openMP_gaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma, int kernelSize, float* kernel) {
 
     int halfOfKernelSize = kernelSize / 2;
-    float* kernel = calculateKernel(sigma, kernelSize);
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
     int x, y, channel, i, j;
@@ -145,14 +143,12 @@ unsigned char* openMP_gaussFilter(unsigned char* image, int width, int height, i
             }
         }
     }
-    delete[] kernel;
     return newImage;
 }
 
-unsigned char* vectorGaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma, int kernelSize) {
+unsigned char* vectorGaussFilter(unsigned char* image, int width, int height, int countChannel, float sigma, int kernelSize, float* kernel) {
 
     int halfOfKernelSize = kernelSize / 2;
-    float* kernel = calculateKernel(sigma, kernelSize);
 
     unsigned char* newImage = new unsigned char[width * height * countChannel];
 
@@ -191,15 +187,16 @@ unsigned char* vectorGaussFilter(unsigned char* image, int width, int height, in
             }
         }
     }
-    delete[] kernel;
     return newImage;
 }
+
 
 int main() {
 
     const char* input = "";
     const char* negative = "negative.png";
     const char* gauss = "gauss.png";
+
 
     int width, height, channels;
     int number;
@@ -254,6 +251,8 @@ int main() {
     int filter;
     cin >> filter;
 
+    float* kernel;
+
     switch (filter) {
     case 1:
         sum = 0;
@@ -277,11 +276,11 @@ int main() {
 
     case 2:
         sum = 0;
-
+        kernel = calculateKernel(7.2, 22);
         for (int i = 0; i < 100; i++) {
             auto begin = chrono::steady_clock::now();
 
-            gaussImage = gaussFilter(imageData, width, height, channels, 7.2, 22);
+            gaussImage = gaussFilter(imageData, width, height, channels, 7.2, 22, kernel);
 
             auto end = chrono::steady_clock::now();
             auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
@@ -304,7 +303,7 @@ int main() {
 
             auto end = chrono::high_resolution_clock::now();
             auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
-            /*cout << elapsedMS.count() / 1000000.0 << endl;*/
+
             sum += elapsedMS.count() / 1000000.0;
         }
 
@@ -315,11 +314,11 @@ int main() {
 
     case 4:
         sum = 0;
-
+        kernel = calculateKernel(7.2, 22);
         for (int i = 0; i < 100; i++) {
             auto begin = chrono::steady_clock::now();
 
-            gaussImage = openMP_gaussFilter(imageData, width, height, channels, 7.2, 22);
+            gaussImage = openMP_gaussFilter(imageData, width, height, channels, 7.2, 22, kernel);
 
             auto end = chrono::steady_clock::now();
             auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
@@ -353,11 +352,11 @@ int main() {
 
     case 6:
         sum = 0;
-
+        kernel = calculateKernel(7.2, 22);
         for (int i = 0; i < 100; i++) {
             auto begin = chrono::steady_clock::now();
 
-            gaussImage = vectorGaussFilter(imageData, width, height, channels, 7.2, 22);
+            gaussImage = vectorGaussFilter(imageData, width, height, channels, 7.2, 22, kernel);
 
             auto end = chrono::steady_clock::now();
             auto elapsedMS = chrono::duration_cast<chrono::microseconds>(end - begin);
